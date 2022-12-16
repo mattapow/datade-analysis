@@ -1,0 +1,57 @@
+{
+    "file": [
+        {
+            "content": "particles",
+            "filename": "dump/testinclined_deep",
+            "format": "liggghts",
+            "number": 1
+        },
+        {
+            "content": "contacts",
+            "filename": "dump/forceinclined_deep",
+            "format": "liggghts",
+            "number": 1,
+            "mapping": {
+                "id1": "c_cout[1]",
+                "id2": "c_cout[2]",
+                "per": "c_cout[3]",
+                "fx": "c_cout[4]",
+                "fy": "c_cout[5]",
+                "fz": "c_cout[6]"
+            }
+        }
+    ],
+    "fields": [
+        "RHO",
+        "VAVG",
+        "TC",
+        "TK"
+    ],
+    "savefile": "CG/CG_inclined",
+    "saveformat": [
+        "vtk",
+        "numpy"
+    ],
+    "boundaries": [
+        [
+            -0.01,
+            -0.01,
+            0
+        ],
+        [
+            0.01,
+            0.01,
+            0.04
+        ]
+    ],
+    "boxes": [
+        10,
+        10,
+        20
+    ],
+    "skip": 0,
+    "max time": 3300,
+    "time average": "None",
+    "window size": 0.004,
+    "window": "Lucy3D"
+}

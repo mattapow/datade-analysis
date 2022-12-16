@@ -1,0 +1,161 @@
+    #======= ID ==========
+variable nom string inclined_deep
+variable ID equal 130
+variable Fhat equal -5
+variable Vhat equal 5
+variable Gall equal 10
+variable Angle equal 25
+variable Stiffness equal 70
+variable Confining equal 10000 #kpa
+variable MuMacro equal 0.5 #kpa
+#=====================
+
+#==================== Variables =================
+variable mFhat equal -${Fhat}
+variable d equal 0.001 #0.0015
+variable rho equal 2500
+variable N equal 2000 # <= objectif de nb de grains
+#------------------- Variables calculées ---------------
+variable radius equal $d/2
+variable radiuslo equal ${radius}*0.9
+variable radiushi equal ${radius}*1.1
+variable Lsimu equal 0.01
+variable Hsimu equal 0.2
+variable Dsimu equal 0.01
+variable peau equal  1.5*$d
+variable Linsert equal ${Lsimu}
+variable Dinsert equal ${Dsimu}
+variable HinsertL equal 0.001
+variable HinsertH equal 0.2
+if "${Angle} == 0" then "variable Dir string 'v'" else "variable Dir string ''"
+#==================================================
+
+atom_style	granular
+boundary	p p f
+
+# tjrs mettre off pour les grains
+newton		off
+communicate	single vel yes
+units		si
+region		reg block -${Lsimu} ${Lsimu} -${Dsimu} ${Dsimu} -0.001 ${Hsimu} units box
+create_box	2 reg
+
+# définition de la recherche de neighbors
+neighbor	${peau} bin
+neigh_modify 	every 1 check yes
+neigh_modify 	delay 0
+
+# ------------- définition des grains -----------------
+#pair_style	gran/hertz/history tangential_damping on cohesion off rolling_friction off viscous off
+#pair_coeff	* *
+#fix 		m1 all property/global youngsModulus peratomtype 1e7
+#fix 		m2 all property/global poissonsRatio peratomtype 0.45
+#fix 		m3 all property/global coefficientRestitution peratomtypepair 1 0.6
+#fix 		m4 all property/global coefficientFriction peratomtypepair 1 0.5
+#fix 		m5 all property/global characteristicVelocity scalar 2.
+#fix 		m6 all property/global cohesionEnergyDensity peratomtypepair 1 500
+
+pair_style 	gran model hertz tangential history tangential_damping on limitForce off
+pair_coeff      * *
+fix 		m1 all property/global youngsModulus peratomtype 5e6 5e6
+fix 		m2 all property/global poissonsRatio peratomtype 0.3 0.3
+fix 		m3 all property/global coefficientRestitution peratomtypepair 2 0.6 0.6 0.6 0.6
+fix 		m4 all property/global coefficientFriction peratomtypepair 2 0.5 0.5 0.5 0.5
+
+timestep	0.00001
+
+# -------------- Mur du fond------------------------------
+fix zwall1 all wall/gran model hertz tangential history primitive type 1 zplane 0.0
+#fix cadb all mesh/surface file Plate.stl type 1
+#fix servo all mesh/surface/stress/servo file Plate.stl type 1 verbose yes move 0. 0. -0.099 rotate axis 0. 1. 0. angle 180 com 0. 0. 0.099 ctrlPV force axis 1 0. -0.1 target_val 10000 vel_max 1 kp 1.
+#fix meshwalls all wall/gran model hertz tangential history mesh n_meshes 2 meshes cadb servo store_force yes tangential_damping on limitForce off
+#fix meshwalls all wall/gran model hertz tangential history mesh n_meshes 1 meshes servo store_force yes tangential_damping on limitForce off
+
+# ----------- dumps ----------------
+fix 		    t all check/timestep/gran 1000 0.2 0.2
+compute         cout all pair/gran/local id force
+
+#
+lattice custom $d a1 2.0 0.0 0.0 a2 0.0 2.0 0.0 a3 0.0 0.0 0.5 basis 0.0 0.0 0.0 origin 0 0 0.5
+variable tetraheight equal 0.8*${radius}
+region  latreg block -${Lsimu} ${Lsimu} -${Dsimu} ${Dsimu} 0 ${tetraheight} units box
+create_atoms 2 region latreg
+# region latreg delete
+# variable loc2 equal ${Hsimu}-${tetraheight}
+# region  latreg block -${Lsimu} ${Lsimu} -${Dsimu} ${Dsimu} ${loc2} ${Hsimu} units box
+# create_atoms 2 region latreg
+#
+# #lattice sc ${radius} origin 0 0 ${tetraheight} spacing 2 1 1
+# lattice custom $d a1 2.0 0.0 0.0 a2 0.0 0.5 0.0 a3 0.0 0.0 0.5 basis 0.0 0.0 0.0 origin 0 0 0.5
+# region latreg delete
+# variable loc2 equal $d+${radius}
+# region  latreg block -${Lsimu} ${Lsimu} -${Dsimu} ${Dsimu} ${radius} $d units box
+# create_atoms 2 region latreg
+# variable loc2 equal ${Hsimu}-${radius}
+# variable loc3 equal ${Hsimu}-$d
+# region latreg delete
+# region  latreg block -${Lsimu} ${Lsimu} -${Dsimu} ${Dsimu} ${loc3} ${loc2} units box
+# create_atoms 2 region latreg
+set     type 2 diameter $d
+set     type 2 density 2500
+#
+# region latreg delete
+# variable loc2 equal ${Hsimu}/2
+# region latreg block -${Lsimu} ${Lsimu} -${Dsimu} ${Dsimu} 0 ${loc2} units box
+# group bottom region latreg
+# velocity bottom set 0 0 0 units box
+# fix frozen bottom setforce 0 0 0
+#
+# region latreg delete
+# region latreg block -${Lsimu} ${Lsimu} -${Dsimu} ${Dsimu} ${loc2} ${Hsimu} units box
+# group top region latreg
+# variable topforcevert equal -${Confining}*2*${Lsimu}*2*${Dsimu}/count(top)
+
+region      insertreg block -${Linsert} ${Linsert} -${Dinsert} ${Dinsert} ${HinsertL} ${HinsertH} units box
+fix         pts1 all particletemplate/sphere 15485863 atom_type 1 density constant ${rho} radius constant 0.001
+fix         pdd1 all particledistribution/discrete 15485867 1 pts1 1.0
+fix         ins all insert/pack seed 32452867 distributiontemplate pdd1 insert_every once overlapcheck yes particles_in_region $N region insertreg ntry_mc 10000
+run 1
+unfix ins 
+
+#create_atoms    1 random $N 49979693 insertreg units box
+#set             type 1 density 2500
+#set             type 1 diameter 0.0015
+group       allgrains type 1
+#dump 		dmp all custom/vtk 1000 dump.test-*.vtk id type x y z vx vy vz fx fy fz radius mass #f_force_meshwalls[3]
+dump 	    dmp2 all custom 1000 dump/test${nom} id type x y z vx vy vz fx fy fz radius mass #f_force_meshwalls[3]
+dump        dmpfrc all local 1000 dump/force${nom} c_cout[1] c_cout[2] c_cout[3] c_cout[4] c_cout[5] c_cout[6]
+
+#compute		cpt all pair/gran/local id pos force
+#compute         cpt all wall/gran/local force
+#compute         cpt2 all reduce sum c_cpt[1]
+#dump		    dmp3a all local 1000 dump.wallforce c_cpt[1] c_cpt[2] c_cpt[3] c_cpt[4] c_cpt[5] c_cpt[6] c_cpt[7] c_cpt[8]
+
+thermo_style    custom step cpu atoms ke #f_t[1] f_t[2] f_servo[1] f_servo[2] f_servo[3]   #ke f_ressort # ke
+thermo		    1000
+
+fix     gravi  allgrains gravity ${Gall} chute 0.
+
+# ----------------- Gravité et intégration -------------
+
+#group   allintegr union allgrains bottom
+fix     integr allgrains nve/sphere
+
+#-------------------------------- Hat --------------------------------------
+#fix		forcehat atmhat addforce 0 ${Fhat} 0
+#velocity	atmhat set ${Vhat} NULL NULL units box
+variable running equal 300000
+#================================================
+run 	${running} upto
+#================================================
+fix     gravi  allgrains gravity ${Gall} chute ${Angle}
+
+variable running equal 3300000
+run 	${running} upto
+
+#set 		group atmstrange density 2500
+#fix 		stick atmstrange setforce NULL 0.0 0.0
+#velocity 	atmstrange set NULL 0.0 NULL units box
+
+#unfix 	incdiam
+#run 	300000000 upto
