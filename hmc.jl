@@ -9,28 +9,7 @@ include("../datade/src/transform_library.jl")
 
 function main(; root_experiment, ensembleAverage, angles)
 
-    elasticnet = "
-    data {
-        int<lower=0> p;  // number of parameters (cols)
-        int<lower=0> n;  // number of samples (rows)
-        matrix[n, p] X;
-        real y[n];
-
-        real<lower=0> lambda_1;
-        // real<lower=0> lambda_2;
-    }
-    parameters {
-        vector[p] beta;
-        real<lower=0> sigma;
-    }
-    model {
-        // Prior on beta
-        beta ~ double_exponential(0, lambda_1);
-
-        // Likelihood of data
-        y ~ normal(X * beta, sigma^2);
-    }
-    "
+    lasso_model = read("./lasso_model.stan", String)
 
     # load in the data
     n_samples = 1000
@@ -54,7 +33,7 @@ function main(; root_experiment, ensembleAverage, angles)
 
     # run the model
     tmpdir = mktempdir()
-    sm = SampleModel("Elastic_net_regression", elasticnet, tmpdir)
+    sm = SampleModel("Elastic_net_regression", lasso_model, tmpdir)
     rc = stan_sample(sm, data=observed_data, num_samples=10000, num_warmups=1000)
 
     if success(rc)
